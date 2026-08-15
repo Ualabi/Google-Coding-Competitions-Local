@@ -1,0 +1,41 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/emu/node_modules
+/emu/.pnp
+/emu/.pnp.*
+/emu/.yarn/*
+/emu/!.yarn/patches
+/emu/!.yarn/plugins
+/emu/!.yarn/releases
+/emu/!.yarn/versions
+
+# testing
+/emu/coverage
+
+# next.js
+/emu/.next/
+/emu/out/
+
+# production
+/emu/build
+
+# misc
+/emu/.DS_Store
+/emu/*.pem
+
+# debug
+/emu/npm-debug.log*
+/emu/yarn-debug.log*
+/emu/yarn-error.log*
+/emu/.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+/emu/.env*
+
+# vercel
+/emu/.vercel
+
+# typescript
+/emu/*.tsbuildinfo
+/emu/next-env.d.ts
