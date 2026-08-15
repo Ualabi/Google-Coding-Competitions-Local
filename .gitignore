@@ -42,5 +42,7 @@
 /emu/*.tsbuildinfo
 /emu/next-env.d.ts
 
-# DS_Store
-.DS_Store
+# Claude
+/emu/.Claude
+/emu/AGENTS.md
+/emu/CLAUDE.md
