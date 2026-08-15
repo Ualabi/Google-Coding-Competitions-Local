@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { isCompetitionId, resolveRoundDir } from "@/lib/catalog";
+import { isCompetitionId, problemAssetDir, resolveRoundDir } from "@/lib/catalog";
 
 const SLUG_PATTERN = /^[a-z0-9_.-]+$/i;
 
@@ -55,7 +55,10 @@ export async function GET(
     return new Response("Not found", { status: 404 });
   }
 
-  const filePath = path.join(roundDir, problem, "problem_statement", ...file);
+  const filePath = path.join(
+    problemAssetDir(competition, roundDir, problem),
+    ...file,
+  );
 
   try {
     const data = await readFile(filePath);

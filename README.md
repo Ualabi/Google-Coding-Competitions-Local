@@ -37,11 +37,13 @@ The app currently supports browsing and solving problems from:
 - **Code Jam** — all years, including qualification/regional rounds and
   the 2008 regional semifinals
 - **Code Jam to I/O for Women** — all years
+- **Distributed Code Jam** — all years, including the 2015 online/practice
+  rounds; a few 2018 Finals problems ship a commented reference solution
+  instead of a written analysis, and are shown as such
 
 Not wired up yet, but planned:
 
 - Hash Code
-- Distributed Code Jam
 - Farewell Rounds
 
 ## Project structure
