@@ -7,7 +7,8 @@ export type CompetitionId =
   | "codejam"
   | "codejam_to_io"
   | "distributed_codejam"
-  | "farewell";
+  | "farewell"
+  | "hashcode";
 
 export interface RawProblemsConfig {
   // Filenames read directly from the problem folder (no problem_statement/
@@ -42,6 +43,11 @@ export interface CompetitionConfig {
   // catalog and routes still need a year, so this is the single synthetic
   // value used for it.
   impliedYear?: string;
+  // Hash Code has no per-problem HTML/judge at all: one combined PDF per
+  // round (a sibling file, not inside the round folder) and one flat input
+  // file per problem, no subfolders. Handled entirely separately from the
+  // split-pane workspace the other competitions use — see lib/hashcode.ts.
+  hashcode?: boolean;
 }
 
 export const COMPETITIONS: Record<CompetitionId, CompetitionConfig> = {
@@ -84,6 +90,12 @@ export const COMPETITIONS: Record<CompetitionId, CompetitionConfig> = {
     label: "Farewell Rounds",
     dirName: "farewell",
     impliedYear: "2023",
+  },
+  hashcode: {
+    id: "hashcode",
+    label: "Hash Code",
+    dirName: "hashcode",
+    hashcode: true,
   },
 };
 

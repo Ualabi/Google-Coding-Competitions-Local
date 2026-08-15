@@ -19,6 +19,9 @@ export const PROBLEMS_ROOT_DIR =
 const SLUG_PATTERN = /^[a-z0-9_-]+$/i;
 const YEAR_PATTERN = /^\d{4}$/;
 const FLAT_YEAR_ROUND_PATTERN = /^(\d{4})_([a-z0-9_-]+)$/i;
+const HASHCODE_ROUND_SLUGS = ["qualification_round", "final_round"] as const;
+const HASHCODE_DIR_PATTERN = /^hashcode_(\d{4})_(qualification_round|final_round)$/;
+const HASHCODE_DATASET_EXTENSIONS = [".in.txt", ".in", ".txt"];
 
 // Known contest rounds, in display order. Anything not listed here (and not
 // practice) sorts alphabetically after these; practice rounds always sort
@@ -41,6 +44,7 @@ const ROUND_ORDER = [
   "amer_semifinal",
   "apac_semifinal",
   "emea_semifinal",
+  "final_round",
   "round_2",
   "r2",
   "round_3",
@@ -134,6 +138,42 @@ async function listDirsSafe(dir: string): Promise<string[]> {
   } catch {
     return [];
   }
+}
+
+async function listFiles(dir: string): Promise<string[]> {
+  const entries = await readdir(dir, { withFileTypes: true });
+  return entries
+    .filter((entry) => entry.isFile())
+    .map((entry) => entry.name)
+    .sort();
+}
+
+async function listFilesSafe(dir: string): Promise<string[]> {
+  try {
+    return await listFiles(dir);
+  } catch {
+    return [];
+  }
+}
+
+function hashcodeRoundDirName(year: string, roundSlug: string): string {
+  return `hashcode_${year}_${roundSlug}`;
+}
+
+// Hash Code dataset filenames vary by year ("a_example.in", "kittens.in.txt",
+// "paris_54000.txt", ...) but from 2016 on they consistently start with a
+// problem letter, e.g. "b_by_the_ocean.in.txt" -> "By The Ocean". Older
+// single-dataset rounds (2014/2015) don't follow that shape at all.
+function humanizeDatasetFilename(filename: string): string {
+  let base = filename;
+  for (const ext of HASHCODE_DATASET_EXTENSIONS) {
+    if (base.toLowerCase().endsWith(ext)) {
+      base = base.slice(0, -ext.length);
+      break;
+    }
+  }
+  const match = base.match(/^[a-z]_(.+)$/i);
+  return match ? humanizeSlug(match[1]) : "Dataset";
 }
 
 async function readFileSafe(filePath: string): Promise<string | null> {
@@ -284,6 +324,43 @@ export const getCatalog = cache(
   async (competition: CompetitionId): Promise<YearEntry[]> => {
     const base = competitionDir(competition);
     const cfg = COMPETITIONS[competition];
+
+    if (cfg.hashcode) {
+      const roundDirsByYear = new Map<string, string[]>();
+      for (const entry of await listDirsSafe(base)) {
+        const match = entry.match(HASHCODE_DIR_PATTERN);
+        if (!match) continue;
+        const [, year, roundSlug] = match;
+        const existing = roundDirsByYear.get(year);
+        if (existing) existing.push(roundSlug);
+        else roundDirsByYear.set(year, [roundSlug]);
+      }
+
+      const years = [...roundDirsByYear.keys()].sort().reverse();
+      return Promise.all(
+        years.map(async (year) => {
+          const roundSlugs = sortRoundSlugs(roundDirsByYear.get(year)!);
+          const rounds = await Promise.all(
+            roundSlugs.map(async (roundSlug) => {
+              const files = await listFilesSafe(
+                path.join(base, hashcodeRoundDirName(year, roundSlug)),
+              );
+              const problems = files.map((filename) => ({
+                slug: filename,
+                title: humanizeDatasetFilename(filename),
+              }));
+              return {
+                slug: roundSlug,
+                title: humanizeSlug(roundSlug),
+                isPractice: false,
+                problems,
+              };
+            }),
+          );
+          return { year, rounds };
+        }),
+      );
+    }
 
     if (cfg.impliedYear) {
       const roundSlugs = sortRoundSlugs(
@@ -453,3 +530,87 @@ export const getRound = cache(
     return { year, slug: roundSlug, title, problems };
   },
 );
+
+// --- Hash Code ---------------------------------------------------------
+// No problem.yaml, no per-problem HTML, no judge: one combined statement
+// PDF per round (a sibling file, not inside the round folder) and one flat
+// input-dataset file per problem. Modeled separately from getRound/
+// resolveRoundDir above rather than folded into their branching, since the
+// shape (files, not problem directories; PDF outside the round dir) doesn't
+// fit the split-pane statement+editor workspace the other competitions use.
+
+export interface HashcodeDataset {
+  filename: string;
+  title: string;
+}
+
+export interface HashcodeRoundData {
+  year: string;
+  slug: string;
+  title: string;
+  datasets: HashcodeDataset[];
+}
+
+function isHashcodeRoundSlug(
+  value: string,
+): value is (typeof HASHCODE_ROUND_SLUGS)[number] {
+  return (HASHCODE_ROUND_SLUGS as readonly string[]).includes(value);
+}
+
+export const getHashcodeRound = cache(
+  async (year: string, roundSlug: string): Promise<HashcodeRoundData | null> => {
+    if (!YEAR_PATTERN.test(year) || !isHashcodeRoundSlug(roundSlug)) {
+      return null;
+    }
+
+    const roundDir = path.join(
+      competitionDir("hashcode"),
+      hashcodeRoundDirName(year, roundSlug),
+    );
+    let files: string[];
+    try {
+      files = await listFiles(roundDir);
+    } catch {
+      return null;
+    }
+    if (files.length === 0) return null;
+
+    const datasets = files
+      .map((filename) => ({
+        filename,
+        title: humanizeDatasetFilename(filename),
+      }))
+      .sort((a, b) => a.filename.localeCompare(b.filename));
+
+    return { year, slug: roundSlug, title: humanizeSlug(roundSlug), datasets };
+  },
+);
+
+// Validates (year, round, filename) against the real dataset listing before
+// resolving a path — used by both the PDF route and the "reveal in file
+// explorer" API route, so neither can be pointed at an arbitrary path.
+export async function resolveHashcodeDatasetPath(
+  year: string,
+  roundSlug: string,
+  filename: string,
+): Promise<string | null> {
+  const round = await getHashcodeRound(year, roundSlug);
+  if (!round?.datasets.some((d) => d.filename === filename)) return null;
+  return path.join(
+    competitionDir("hashcode"),
+    hashcodeRoundDirName(year, roundSlug),
+    filename,
+  );
+}
+
+export async function resolveHashcodePdfPath(
+  year: string,
+  roundSlug: string,
+): Promise<string | null> {
+  const round = await getHashcodeRound(year, roundSlug);
+  if (!round) return null;
+  return path.join(
+    competitionDir("hashcode"),
+    `${hashcodeRoundDirName(year, roundSlug)}.pdf`,
+  );
+}

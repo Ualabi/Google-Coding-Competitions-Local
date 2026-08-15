@@ -9,10 +9,16 @@ Jam, Kick Start, Hash Code, and friends).
 
 The upstream repo is just the raw archived data — problem statements,
 analyses, sample data — with no way to browse or actually solve anything.
-This fork adds [`emu/`](emu/), a small local web app on top of that data: clone the repo,
-run it, and get a split-pane view (problem statement on the left, code
-editor on the right) for every problem, organized by year and round, with
-no account, server, or internet connection required.
+This fork adds [`emu/`](emu/), a small local web app on top of that data:
+clone the repo, run it, and browse every problem organized by year and
+round, with no account, server, or internet connection required.
+
+Most competitions get a split-pane view — problem statement on the left,
+code editor on the right. Hash Code is the exception: it never had an
+online judge, just a PDF problem statement and an input dataset you'd
+process yourself, so its page is a PDF reader plus an "Open dataset"
+button per problem that reveals the input file in your OS's file explorer
+(Finder/Explorer/whatever your Linux file manager is).
 
 **This is a work in progress and not fully ready yet.** See
 [Status](#status) below for what's currently browsable.
@@ -31,7 +37,7 @@ separate data setup needed.
 
 ## Status
 
-The app currently supports browsing and solving problems from:
+Every competition in this archive is browsable now:
 
 - **Kick Start** — all years, including practice rounds
 - **Code Jam** — all years, including qualification/regional rounds and
@@ -41,11 +47,20 @@ The app currently supports browsing and solving problems from:
   rounds; a few 2018 Finals problems ship a commented reference solution
   instead of a written analysis, and are shown as such
 - **Farewell Rounds** — the 2023 send-off event (Rounds A–D)
+- **Hash Code** — all years, PDF statement + "open dataset" per problem
+  instead of the usual code editor (see above)
 
-Not wired up yet, but planned:
+Nothing left unwired, but plenty of rough edges remain — see the open
+questions the app raised along the way, which are worth revisiting:
 
-- Hash Code
-- Farewell Rounds
+- A few Distributed Code Jam problems (2018 Finals) show a raw commented
+  C++ solution as a stand-in for a missing written analysis.
+- Distributed Code Jam's statement/analysis pages are unstyled HTML
+  fragments (no CSS at all), unlike every other competition's polished
+  pages.
+- Problem/round titles for Distributed Code Jam and Hash Code are derived
+  from filenames, not real metadata, so they're occasionally imperfect
+  (e.g. an acronym rendered as "Rps" instead of "RPS").
 
 ## Project structure
 
@@ -64,10 +79,15 @@ Not wired up yet, but planned:
                            folders above — see emu/README.md for app-level detail
 ```
 
-Each problem folder (e.g. `kickstart/2022/round_a/<problem>/`) follows the
+Most problem folders (e.g. `kickstart/2022/round_a/<problem>/`) follow the
 same shape: a `problem.yaml` with metadata, a `problem_statement/` with
-the HTML statement and analysis, and sample/secret test data. `emu/`
-doesn't modify any of this data — it only reads it.
+the HTML statement and analysis, and sample/secret test data. Two
+competitions differ: Distributed Code Jam skips `problem.yaml` entirely
+(bare `statement.html`/`analysis.html`, titles derived from folder names),
+and Hash Code has no per-problem folders at all — just one combined PDF
+per round (`hashcode/<round>.pdf`) plus one flat input-dataset file per
+problem (`hashcode/<round>/<dataset>`). `emu/` doesn't modify any of this
+data — it only reads it.
 
 ## About the original archive
 
@@ -77,6 +97,7 @@ upstream:
 - Distributed Code Jam
 - Code Jam
 - Code Jam to I/O for Women
+- Farewell Rounds
 - Hash Code
 - Kick Start
 

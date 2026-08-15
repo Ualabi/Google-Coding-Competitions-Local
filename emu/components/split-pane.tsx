@@ -7,12 +7,14 @@ const MIN_PANE_PERCENT = 25;
 export function SplitPane({
   left,
   right,
+  initialLeftPercent = 45,
 }: {
   left: ReactNode;
   right: ReactNode;
+  initialLeftPercent?: number;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [leftWidth, setLeftWidth] = useState(45);
+  const [leftWidth, setLeftWidth] = useState(initialLeftPercent);
   const draggingRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
 
