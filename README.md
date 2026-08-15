@@ -36,12 +36,12 @@ The app currently supports browsing and solving problems from:
 - **Kick Start** — all years, including practice rounds
 - **Code Jam** — all years, including qualification/regional rounds and
   the 2008 regional semifinals
+- **Code Jam to I/O for Women** — all years
 
 Not wired up yet, but planned:
 
 - Hash Code
 - Distributed Code Jam
-- Code Jam to I/O for Women
 - Farewell Rounds
 
 ## Project structure

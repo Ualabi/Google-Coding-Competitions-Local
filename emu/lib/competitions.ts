@@ -2,7 +2,7 @@
 // safe to import from client components. Filesystem-backed lookups
 // (getCatalog, getRound, resolveRoundDir) live in lib/catalog.ts instead.
 
-export type CompetitionId = "kickstart" | "codejam";
+export type CompetitionId = "kickstart" | "codejam" | "codejam_to_io";
 
 export interface CompetitionConfig {
   id: CompetitionId;
@@ -24,6 +24,11 @@ export const COMPETITIONS: Record<CompetitionId, CompetitionConfig> = {
     id: "codejam",
     label: "Code Jam",
     dirName: "codejam",
+  },
+  codejam_to_io: {
+    id: "codejam_to_io",
+    label: "Code Jam to I/O for Women",
+    dirName: "codejam_to_io",
   },
 };
 
