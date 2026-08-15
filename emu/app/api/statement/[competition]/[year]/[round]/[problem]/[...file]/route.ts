@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { PROBLEMS_LIB_DIR } from "@/lib/catalog";
+import { isCompetitionId, resolveRoundDir } from "@/lib/catalog";
 
 const SLUG_PATTERN = /^[a-z0-9_.-]+$/i;
 
@@ -23,6 +23,7 @@ export async function GET(
     params,
   }: {
     params: Promise<{
+      competition: string;
       year: string;
       round: string;
       problem: string;
@@ -30,9 +31,10 @@ export async function GET(
     }>;
   },
 ) {
-  const { year, round, problem, file } = await params;
+  const { competition, year, round, problem, file } = await params;
 
   if (
+    !isCompetitionId(competition) ||
     !/^\d{4}$/.test(year) ||
     !isValidSegment(round) ||
     !isValidSegment(problem) ||
@@ -48,14 +50,12 @@ export async function GET(
     return new Response("Not found", { status: 404 });
   }
 
-  const filePath = path.join(
-    PROBLEMS_LIB_DIR,
-    year,
-    round,
-    problem,
-    "problem_statement",
-    ...file,
-  );
+  const roundDir = await resolveRoundDir(competition, year, round);
+  if (!roundDir) {
+    return new Response("Not found", { status: 404 });
+  }
+
+  const filePath = path.join(roundDir, problem, "problem_statement", ...file);
 
   try {
     const data = await readFile(filePath);

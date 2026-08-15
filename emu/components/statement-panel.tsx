@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { StatementFrame } from "@/components/statement-frame";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { useTheme } from "@/components/theme-provider";
+import type { CompetitionId } from "@/lib/competitions";
 import { prepareStatementHtml } from "@/lib/statement-html";
 
 type Tab = "problem" | "analysis";
@@ -20,12 +21,14 @@ export interface StatementProblem {
 }
 
 export function StatementPanel({
+  competition,
   year,
   round,
   problems,
   selectedSlug,
   onSelectProblem,
 }: {
+  competition: CompetitionId;
   year: string;
   round: string;
   problems: StatementProblem[];
@@ -33,7 +36,7 @@ export function StatementPanel({
   onSelectProblem: (slug: string) => void;
 }) {
   const [tab, setTab] = useState<Tab>("problem");
-  const [dark, setDark] = useState(false);
+  const { isDark: dark } = useTheme();
 
   const [prevSlug, setPrevSlug] = useState(selectedSlug);
   if (selectedSlug !== prevSlug) {
@@ -45,16 +48,16 @@ export function StatementPanel({
     problems.find((p) => p.slug === selectedSlug) ?? problems[0];
 
   const html = useMemo(() => {
-    const basePath = `/api/statement/${year}/${round}/${selected.slug}/`;
+    const basePath = `/api/statement/${competition}/${year}/${round}/${selected.slug}/`;
     const raw = tab === "problem" ? selected.problemHtml : selected.analysisHtml;
     return prepareStatementHtml(raw, { basePath, dark });
-  }, [year, round, selected, tab, dark]);
+  }, [competition, year, round, selected, tab, dark]);
 
   return (
     <div
       className={`flex h-full flex-col bg-panel text-foreground ${dark ? "dark" : ""}`}
     >
-      <div className="flex h-11 shrink-0 items-center justify-between border-b border-panel-border px-4">
+      <div className="flex h-11 shrink-0 items-center border-b border-panel-border px-4">
         <select
           value={selected.slug}
           onChange={(event) => onSelectProblem(event.target.value)}
@@ -67,7 +70,6 @@ export function StatementPanel({
             </option>
           ))}
         </select>
-        <ThemeToggle isDark={dark} onToggle={() => setDark((d) => !d)} />
       </div>
       <div className="flex shrink-0 pt-6 pb-4">
         {TABS.map(({ id, label }) => (
