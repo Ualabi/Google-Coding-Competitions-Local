@@ -38,7 +38,8 @@ export default async function Home() {
                 {COMPETITIONS[id].label}
               </div>
               <div className="text-xs text-panel-muted">
-                {years.length} years · {roundCount} rounds
+                {years.length} year{years.length === 1 ? "" : "s"} ·{" "}
+                {roundCount} round{roundCount === 1 ? "" : "s"}
               </div>
             </Link>
           );

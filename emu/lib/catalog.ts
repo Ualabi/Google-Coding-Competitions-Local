@@ -187,7 +187,20 @@ export async function resolveRoundDir(
   year: string,
   roundSlug: string,
 ): Promise<string | null> {
-  const candidates = COMPETITIONS[competition].flatYearRound
+  const cfg = COMPETITIONS[competition];
+
+  if (cfg.impliedYear) {
+    if (year !== cfg.impliedYear) return null;
+    const candidate = path.join(competitionDir(competition), roundSlug);
+    try {
+      if ((await stat(candidate)).isDirectory()) return candidate;
+    } catch {
+      // fall through to null below
+    }
+    return null;
+  }
+
+  const candidates = cfg.flatYearRound
     ? [path.join(competitionDir(competition), `${year}_${roundSlug}`)]
     : roundBaseDirs(competition, year).map((baseDir) =>
         path.join(baseDir, roundSlug),
@@ -271,6 +284,19 @@ export const getCatalog = cache(
   async (competition: CompetitionId): Promise<YearEntry[]> => {
     const base = competitionDir(competition);
     const cfg = COMPETITIONS[competition];
+
+    if (cfg.impliedYear) {
+      const roundSlugs = sortRoundSlugs(
+        (await listDirsSafe(base)).filter(isValidSlug),
+      );
+      if (roundSlugs.length === 0) return [];
+      const rounds = await Promise.all(
+        roundSlugs.map((slug) =>
+          readRoundSummary(competition, cfg.impliedYear!, slug),
+        ),
+      );
+      return [{ year: cfg.impliedYear, rounds }];
+    }
 
     if (cfg.flatYearRound) {
       const entries = await listDirsSafe(base);

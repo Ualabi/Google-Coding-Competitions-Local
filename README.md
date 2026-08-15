@@ -40,6 +40,7 @@ The app currently supports browsing and solving problems from:
 - **Distributed Code Jam** — all years, including the 2015 online/practice
   rounds; a few 2018 Finals problems ship a commented reference solution
   instead of a written analysis, and are shown as such
+- **Farewell Rounds** — the 2023 send-off event (Rounds A–D)
 
 Not wired up yet, but planned:
 

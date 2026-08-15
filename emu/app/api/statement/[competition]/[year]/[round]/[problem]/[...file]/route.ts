@@ -17,6 +17,20 @@ function isValidSegment(value: string): boolean {
   return SLUG_PATTERN.test(value) && !value.includes("..");
 }
 
+// File segments come straight from the archive and, unlike round/problem
+// slugs, aren't guaranteed to be simple — e.g. some Farewell Round D image
+// filenames are literal math expressions like "Dn=sum(Di+Si).png". Allow
+// any character except path separators and ".." traversal.
+function isValidFileSegment(value: string): boolean {
+  return (
+    value.length > 0 &&
+    !value.includes("/") &&
+    !value.includes("\\") &&
+    !value.includes("\0") &&
+    !value.includes("..")
+  );
+}
+
 export async function GET(
   _request: Request,
   {
@@ -39,7 +53,7 @@ export async function GET(
     !isValidSegment(round) ||
     !isValidSegment(problem) ||
     file.length === 0 ||
-    !file.every(isValidSegment)
+    !file.every(isValidFileSegment)
   ) {
     return new Response("Not found", { status: 404 });
   }

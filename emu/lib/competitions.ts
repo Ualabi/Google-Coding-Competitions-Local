@@ -6,7 +6,8 @@ export type CompetitionId =
   | "kickstart"
   | "codejam"
   | "codejam_to_io"
-  | "distributed_codejam";
+  | "distributed_codejam"
+  | "farewell";
 
 export interface RawProblemsConfig {
   // Filenames read directly from the problem folder (no problem_statement/
@@ -36,6 +37,11 @@ export interface CompetitionConfig {
   // Present when problems have no problem.yaml/problem_statement — see
   // RawProblemsConfig.
   rawProblems?: RawProblemsConfig;
+  // One-off competitions with no year directory at all — rounds sit
+  // directly under the competition dir (e.g. farewell/round_a/). The
+  // catalog and routes still need a year, so this is the single synthetic
+  // value used for it.
+  impliedYear?: string;
 }
 
 export const COMPETITIONS: Record<CompetitionId, CompetitionConfig> = {
@@ -72,6 +78,12 @@ export const COMPETITIONS: Record<CompetitionId, CompetitionConfig> = {
         finals: "Finals",
       },
     },
+  },
+  farewell: {
+    id: "farewell",
+    label: "Farewell Rounds",
+    dirName: "farewell",
+    impliedYear: "2023",
   },
 };
 

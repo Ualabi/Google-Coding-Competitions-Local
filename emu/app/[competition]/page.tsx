@@ -28,8 +28,8 @@ export default async function CompetitionCatalog({
             {label}
           </h1>
           <p className="mt-2 text-sm text-panel-muted">
-            A local, offline archive of every Google {label} round — pick a
-            year and a round to start solving.
+            A local, offline archive of {label} — pick a year and a round to
+            start solving.
           </p>
         </div>
         <ThemeToggleButton />
