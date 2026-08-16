@@ -2,15 +2,18 @@
 
 import { useMemo, useState } from "react";
 import { StatementFrame } from "@/components/statement-frame";
+import { SubmitPanel } from "@/components/submit-panel";
 import { useTheme } from "@/components/theme-provider";
+import type { ProblemTestData } from "@/lib/catalog";
 import type { CompetitionId } from "@/lib/competitions";
 import { prepareStatementHtml } from "@/lib/statement-html";
 
-type Tab = "problem" | "analysis";
+type Tab = "problem" | "analysis" | "submit";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "problem", label: "Problem" },
   { id: "analysis", label: "Analysis" },
+  { id: "submit", label: "Submit" },
 ];
 
 export interface StatementProblem {
@@ -18,6 +21,7 @@ export interface StatementProblem {
   title: string;
   problemHtml: string;
   analysisHtml: string;
+  testData: ProblemTestData | null;
 }
 
 export function StatementPanel({
@@ -49,7 +53,7 @@ export function StatementPanel({
 
   const html = useMemo(() => {
     const basePath = `/api/statement/${competition}/${year}/${round}/${selected.slug}/`;
-    const raw = tab === "problem" ? selected.problemHtml : selected.analysisHtml;
+    const raw = tab === "analysis" ? selected.analysisHtml : selected.problemHtml;
     return prepareStatementHtml(raw, { basePath, dark });
   }, [competition, year, round, selected, tab, dark]);
 
@@ -89,13 +93,23 @@ export function StatementPanel({
           </div>
         ))}
       </div>
-      <div className="min-h-0 flex-1">
-        <StatementFrame html={html} title={`${selected.title} — ${label(tab)}`} />
+      <div className="flex min-h-0 flex-1 flex-col">
+        {tab === "submit" ? (
+          <SubmitPanel
+            competition={competition}
+            year={year}
+            round={round}
+            problem={selected.slug}
+            testData={selected.testData}
+          />
+        ) : (
+          <StatementFrame html={html} title={`${selected.title} — ${tabLabel(tab)}`} />
+        )}
       </div>
     </div>
   );
 }
 
-function label(tab: Tab) {
-  return tab === "problem" ? "Problem" : "Analysis";
+function tabLabel(tab: Tab): string {
+  return TABS.find((t) => t.id === tab)?.label ?? "";
 }

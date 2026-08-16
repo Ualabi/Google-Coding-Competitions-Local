@@ -53,9 +53,23 @@ const ROUND_ORDER = [
   "finals",
 ];
 
+export interface SubtaskInfo {
+  id: number;
+  acceptScore: number;
+}
+
+export interface ProblemTestData {
+  subtasks: SubtaskInfo[];
+  totalScore: number;
+}
+
 export interface ProblemSummary {
   slug: string;
   title: string;
+  // null for problems with no static secret test data to grade against —
+  // e.g. Distributed Code Jam (no data/ at all) or interactive-judge
+  // problems (custom validator, no fixed .ans to compare against).
+  testData: ProblemTestData | null;
 }
 
 export interface RoundSummary {
@@ -200,6 +214,23 @@ function sortRoundSlugs(slugs: string[]): string[] {
   return [...main, ...practice];
 }
 
+// Easiest first: total possible points is a reasonable proxy for difficulty
+// (these competitions consistently weight harder problems higher). Problems
+// with no test data to score (no judge data at all) sort last, since there's
+// no signal to rank them by.
+function sortProblemsByDifficulty<T extends { title: string; testData: ProblemTestData | null }>(
+  problems: T[],
+): T[] {
+  return [...problems].sort((a, b) => {
+    const scoreA = a.testData?.totalScore;
+    const scoreB = b.testData?.totalScore;
+    if (scoreA == null && scoreB == null) return a.title.localeCompare(b.title);
+    if (scoreA == null) return 1;
+    if (scoreB == null) return -1;
+    return scoreA - scoreB || a.title.localeCompare(b.title);
+  });
+}
+
 function competitionDir(competition: CompetitionId): string {
   return path.join(PROBLEMS_ROOT_DIR, COMPETITIONS[competition].dirName);
 }
@@ -270,19 +301,149 @@ export function problemAssetDir(
     : path.join(problemDir, "problem_statement");
 }
 
+const SUBTASK_DIR_PATTERN = /^subtask(\d+)$/;
+
+// Reads a problem's graded test data straight from data/secret/subtask*/
+// testdata.yaml (accept_score per subtask) — competitions without a data/
+// folder at all (Distributed Code Jam) or without secret subtasks
+// (interactive-judge problems) simply have nothing to read, so this
+// returns null rather than throwing.
+async function readProblemTestData(
+  roundDir: string,
+  problemSlug: string,
+): Promise<ProblemTestData | null> {
+  const secretDir = path.join(roundDir, problemSlug, "data", "secret");
+  const entries = await listDirsSafe(secretDir);
+  const subtaskDirs = entries.filter((e) => SUBTASK_DIR_PATTERN.test(e));
+  if (subtaskDirs.length === 0) return null;
+
+  const subtasks = (
+    await Promise.all(
+      subtaskDirs.map(async (dirName) => {
+        const id = Number(dirName.match(SUBTASK_DIR_PATTERN)![1]);
+        const yaml = await readFileSafe(
+          path.join(secretDir, dirName, "testdata.yaml"),
+        );
+        const acceptScore = yaml ? Number(parseYamlField(yaml, "accept_score")) : NaN;
+        return { id, acceptScore };
+      }),
+    )
+  )
+    .filter((s): s is SubtaskInfo => Number.isFinite(s.acceptScore))
+    .sort((a, b) => a.id - b.id);
+
+  if (subtasks.length === 0) return null;
+
+  return {
+    subtasks,
+    totalScore: subtasks.reduce((sum, s) => sum + s.acceptScore, 0),
+  };
+}
+
+function subtaskDir(
+  roundDir: string,
+  problemSlug: string,
+  subtaskId: number,
+): string {
+  return path.join(roundDir, problemSlug, "data", "secret", `subtask${subtaskId}`);
+}
+
+// Validates (competition, year, round, problem, subtask) against the real
+// on-disk test data before resolving a path — reused by both the input
+// download route and the judge endpoint, so neither can be pointed at an
+// arbitrary file.
+async function resolveSubtask(
+  competition: CompetitionId,
+  year: string,
+  roundSlug: string,
+  problemSlug: string,
+  subtaskId: number,
+): Promise<{ roundDir: string; subtask: SubtaskInfo } | null> {
+  const roundDir = await resolveRoundDir(competition, year, roundSlug);
+  if (!roundDir) return null;
+  const testData = await readProblemTestData(roundDir, problemSlug);
+  const subtask = testData?.subtasks.find((s) => s.id === subtaskId);
+  return subtask ? { roundDir, subtask } : null;
+}
+
+export async function resolveSubtaskInputPath(
+  competition: CompetitionId,
+  year: string,
+  roundSlug: string,
+  problemSlug: string,
+  subtaskId: number,
+): Promise<string | null> {
+  const resolved = await resolveSubtask(
+    competition,
+    year,
+    roundSlug,
+    problemSlug,
+    subtaskId,
+  );
+  if (!resolved) return null;
+  return path.join(
+    subtaskDir(resolved.roundDir, problemSlug, subtaskId),
+    "1.in",
+  );
+}
+
+// Competitive-judge-style comparison: whitespace-normalized token equality,
+// so extra spaces/blank lines/line-ending differences don't matter but the
+// actual values do — matches how the real judges compared submissions.
+function normalizedTokens(text: string): string {
+  return text.trim().split(/\s+/).filter(Boolean).join(" ");
+}
+
+export interface JudgeResult {
+  correct: boolean;
+  acceptScore: number;
+}
+
+export async function judgeSubtaskOutput(
+  competition: CompetitionId,
+  year: string,
+  roundSlug: string,
+  problemSlug: string,
+  subtaskId: number,
+  submittedOutput: string,
+): Promise<JudgeResult | null> {
+  const resolved = await resolveSubtask(
+    competition,
+    year,
+    roundSlug,
+    problemSlug,
+    subtaskId,
+  );
+  if (!resolved) return null;
+
+  const expected = await readFileSafe(
+    path.join(subtaskDir(resolved.roundDir, problemSlug, subtaskId), "1.ans"),
+  );
+  if (expected === null) return null;
+
+  return {
+    correct: normalizedTokens(expected) === normalizedTokens(submittedOutput),
+    acceptScore: resolved.subtask.acceptScore,
+  };
+}
+
 async function readProblemSummary(
   competition: CompetitionId,
   roundDir: string,
   problemSlug: string,
 ): Promise<ProblemSummary> {
   if (COMPETITIONS[competition].rawProblems) {
-    return { slug: problemSlug, title: humanizeSlug(problemSlug) };
+    // Distributed Code Jam: no data/ folder, so nothing to grade.
+    return { slug: problemSlug, title: humanizeSlug(problemSlug), testData: null };
   }
-  const yamlPath = path.join(roundDir, problemSlug, "problem.yaml");
-  const yaml = await readFile(yamlPath, "utf-8");
+  const [yaml, testData] = await Promise.all([
+    readFile(path.join(roundDir, problemSlug, "problem.yaml"), "utf-8"),
+    readProblemTestData(roundDir, problemSlug),
+  ]);
   return {
     slug: problemSlug,
     title: parseYamlField(yaml, "name") || problemSlug,
+    testData,
   };
 }
 
@@ -348,6 +509,9 @@ export const getCatalog = cache(
               const problems = files.map((filename) => ({
                 slug: filename,
                 title: humanizeDatasetFilename(filename),
+                // Hash Code has its own separate PDF + dataset workflow,
+                // not the subtask-based grading the other competitions use.
+                testData: null,
               }));
               return {
                 slug: roundSlug,
@@ -478,16 +642,17 @@ export const getRound = cache(
               cpp: buildStarterCode(title, "cpp"),
               python: buildStarterCode(title, "python"),
             } satisfies Record<Language, string>,
+            // Distributed Code Jam has no data/ folder at all.
+            testData: null,
           };
         }),
       );
 
-      problems.sort((a, b) => a.title.localeCompare(b.title));
       return {
         year,
         slug: roundSlug,
         title: roundTitle(competition, roundSlug),
-        problems,
+        problems: sortProblemsByDifficulty(problems),
       };
     }
 
@@ -496,7 +661,7 @@ export const getRound = cache(
     const problems: ProblemData[] = await Promise.all(
       problemSlugs.map(async (slug) => {
         const problemDir = path.join(roundDir, slug);
-        const [yaml, problemHtml, analysisHtml] = await Promise.all([
+        const [yaml, problemHtml, analysisHtml, testData] = await Promise.all([
           readFile(path.join(problemDir, "problem.yaml"), "utf-8"),
           readFile(
             path.join(problemDir, "problem_statement", "problem.html"),
@@ -506,6 +671,7 @@ export const getRound = cache(
             path.join(problemDir, "problem_statement", "analysis.html"),
             "utf-8",
           ),
+          readProblemTestData(roundDir, slug),
         ]);
         const title = parseYamlField(yaml, "name") || slug;
         sources.set(slug, parseYamlField(yaml, "source"));
@@ -519,15 +685,20 @@ export const getRound = cache(
             cpp: buildStarterCode(title, "cpp"),
             python: buildStarterCode(title, "python"),
           } satisfies Record<Language, string>,
+          testData,
         };
       }),
     );
 
-    problems.sort((a, b) => a.title.localeCompare(b.title));
     const firstSource = problems[0] && sources.get(problems[0].slug);
     const title = firstSource ? titleFromSource(firstSource) : roundSlug;
 
-    return { year, slug: roundSlug, title, problems };
+    return {
+      year,
+      slug: roundSlug,
+      title,
+      problems: sortProblemsByDifficulty(problems),
+    };
   },
 );
 

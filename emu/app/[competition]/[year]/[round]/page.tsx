@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
 import { getRound, isCompetitionId } from "@/lib/catalog";
-import { Workspace } from "@/components/workspace";
+import { RoundDashboard } from "@/components/round-dashboard";
 
-export default async function RoundPage({
+export default async function RoundDashboardPage({
   params,
 }: {
   params: Promise<{ competition: string; year: string; round: string }>;
@@ -14,13 +14,5 @@ export default async function RoundPage({
 
   if (!data) notFound();
 
-  return (
-    <Workspace
-      competition={competition}
-      year={data.year}
-      round={data.slug}
-      roundTitle={data.title}
-      problems={data.problems}
-    />
-  );
+  return <RoundDashboard competition={competition} data={data} />;
 }

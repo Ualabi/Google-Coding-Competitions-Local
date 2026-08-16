@@ -7,6 +7,7 @@ import { StatementPanel } from "@/components/statement-panel";
 import { SplitPane } from "@/components/split-pane";
 import { ThemeToggleButton } from "@/components/theme-toggle-button";
 import { COMPETITIONS, type CompetitionId } from "@/lib/competitions";
+import type { ProblemTestData } from "@/lib/catalog";
 import type { Language } from "@/lib/starter-code";
 
 export interface WorkspaceProblem {
@@ -15,6 +16,7 @@ export interface WorkspaceProblem {
   problemHtml: string;
   analysisHtml: string;
   starterCode: Record<Language, string>;
+  testData: ProblemTestData | null;
 }
 
 export function Workspace({
@@ -23,14 +25,18 @@ export function Workspace({
   round,
   roundTitle,
   problems,
+  initialSlug,
 }: {
   competition: CompetitionId;
   year: string;
   round: string;
   roundTitle: string;
   problems: WorkspaceProblem[];
+  initialSlug?: string;
 }) {
-  const [selectedSlug, setSelectedSlug] = useState(problems[0].slug);
+  const [selectedSlug, setSelectedSlug] = useState(
+    initialSlug ?? problems[0].slug,
+  );
   const selected = problems.find((p) => p.slug === selectedSlug) ?? problems[0];
 
   return (
@@ -52,7 +58,14 @@ export function Workspace({
         <span className="text-sm text-panel-muted">/</span>
         <span className="text-sm text-panel-muted">{year}</span>
         <span className="text-sm text-panel-muted">/</span>
-        <span className="text-sm font-medium">{roundTitle}</span>
+        <Link
+          href={`/${competition}/${year}/${round}`}
+          className="text-sm text-panel-muted hover:text-foreground"
+        >
+          {roundTitle}
+        </Link>
+        <span className="text-sm text-panel-muted">/</span>
+        <span className="text-sm font-medium">{selected.title}</span>
         <span className="ml-auto">
           <ThemeToggleButton />
         </span>

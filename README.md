@@ -13,12 +13,19 @@ This fork adds [`emu/`](emu/), a small local web app on top of that data:
 clone the repo, run it, and browse every problem organized by year and
 round, with no account, server, or internet connection required.
 
-Most competitions get a split-pane view — problem statement on the left,
-code editor on the right. Hash Code is the exception: it never had an
-online judge, just a PDF problem statement and an input dataset you'd
-process yourself, so its page is a PDF reader plus an "Open dataset"
+Opening a round lands you on a dashboard — problems, per-subtask progress,
+and your total score for that round — matching how these competitions
+actually scored things: partial credit per subtask, not pass/fail per
+problem. From there, most competitions open into a split-pane view
+(problem statement on the left, code editor on the right) with a "Submit"
+tab: download a subtask's input, run your own solution against it
+locally (there's no code execution here, just an editor to write in), then
+upload or paste the output to get it checked against the real expected
+answer and scored. Hash Code is the exception to all of this: it never had
+an online judge at all, just a PDF problem statement and an input dataset
+you'd process yourself, so its page is a PDF reader plus an "Open dataset"
 button per problem that reveals the input file in your OS's file explorer
-(Finder/Explorer/whatever your Linux file manager is).
+(Finder/Explorer/whatever your Linux file manager is) — nothing to score.
 
 **This is a work in progress and not fully ready yet.** See
 [Status](#status) below for what's currently browsable.
@@ -61,6 +68,15 @@ questions the app raised along the way, which are worth revisiting:
 - Problem/round titles for Distributed Code Jam and Hash Code are derived
   from filenames, not real metadata, so they're occasionally imperfect
   (e.g. an acronym rendered as "Rps" instead of "RPS").
+- Grading is whitespace-normalized exact-token matching against the
+  archived `.ans` files — it doesn't know about per-problem custom output
+  validators (e.g. float tolerance), so a numerically-correct answer with
+  different formatting than the reference could be marked wrong. Only
+  problems with static secret test data are gradable at all — Distributed
+  Code Jam (no `data/` folder) and interactive-judge problems (a custom
+  live judge, not fixed answer files) show "no judge data" instead.
+- Scores live in your browser's `localStorage`, per problem/subtask —
+  nothing is synced anywhere, so clearing site data resets your progress.
 
 ## Project structure
 
@@ -81,8 +97,12 @@ questions the app raised along the way, which are worth revisiting:
 
 Most problem folders (e.g. `kickstart/2022/round_a/<problem>/`) follow the
 same shape: a `problem.yaml` with metadata, a `problem_statement/` with
-the HTML statement and analysis, and sample/secret test data. Two
-competitions differ: Distributed Code Jam skips `problem.yaml` entirely
+the HTML statement and analysis, and a `data/` folder with sample and
+secret test data — the secret data is split into `subtask1/`, `subtask2/`,
+etc., each an input/answer pair (`1.in`/`1.ans`) plus a `testdata.yaml`
+giving that subtask's `accept_score`; this is exactly what the round
+dashboard and "Submit" tab grade against. Two competitions differ:
+Distributed Code Jam skips `problem.yaml` entirely
 (bare `statement.html`/`analysis.html`, titles derived from folder names),
 and Hash Code has no per-problem folders at all — just one combined PDF
 per round (`hashcode/<round>.pdf`) plus one flat input-dataset file per

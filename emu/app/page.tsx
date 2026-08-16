@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { COMPETITIONS, getCatalog, type CompetitionId } from "@/lib/catalog";
+import { CompetitionPicker } from "@/components/competition-picker";
 import { ThemeToggleButton } from "@/components/theme-toggle-button";
 
 export default async function Home() {
@@ -23,28 +23,7 @@ export default async function Home() {
         <ThemeToggleButton />
       </header>
 
-      <div className="flex flex-wrap gap-3">
-        {competitionIds.map((id, i) => {
-          const years = catalogs[i];
-          const roundCount = years.reduce((n, y) => n + y.rounds.length, 0);
-
-          return (
-            <Link
-              key={id}
-              href={`/${id}`}
-              className="group w-56 rounded-lg border border-panel-border bg-panel px-4 py-3 transition-colors hover:border-blue-600 hover:bg-blue-600/5"
-            >
-              <div className="text-sm font-medium text-foreground group-hover:text-blue-600">
-                {COMPETITIONS[id].label}
-              </div>
-              <div className="text-xs text-panel-muted">
-                {years.length} year{years.length === 1 ? "" : "s"} ·{" "}
-                {roundCount} round{roundCount === 1 ? "" : "s"}
-              </div>
-            </Link>
-          );
-        })}
-      </div>
+      <CompetitionPicker competitionIds={competitionIds} catalogs={catalogs} />
     </div>
   );
 }
